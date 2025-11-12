@@ -46,7 +46,15 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 217 33% 17%;
     --sidebar-ring: 217 91% 60%;
-
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 35%), hsl(201 96% 45%));
+    --sidebar-background: 217 91% 35%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 201 96% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 91% 40%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 91% 30%;
+    --sidebar-ring: 201 96% 45%;
     /* Custom tokens */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;

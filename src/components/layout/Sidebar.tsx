@@ -1,7 +1,9 @@
 import { Home, User, FileText, Bell, Menu } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useEffect, useState } from "react";
+import { toast } from "sonner"; // hoặc thư viện toast bạn đang dùng
 
 const navigation = [
   { name: "Trang chủ", href: "/", icon: Home },
@@ -11,6 +13,22 @@ const navigation = [
 ];
 
 export function Sidebar() {
+  const [user, setUser] = useState<any>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setUser(JSON.parse(storedUser));
+  }, []);
+
+  const handleClick = (href: string) => {
+    if (!user) {
+      toast.error("❌ Vui lòng đăng nhập để truy cập tính năng này!");
+      return;
+    }
+    navigate(href);
+  };
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -23,15 +41,14 @@ export function Sidebar() {
           </div>
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             {navigation.map((item) => (
-              <NavLink
+              <button
                 key={item.name}
-                to={item.href}
-                className="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                activeClassName="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+                onClick={() => handleClick(item.href)}
+                className="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
               >
                 <item.icon className="mr-3 h-5 w-5" />
                 {item.name}
-              </NavLink>
+              </button>
             ))}
           </nav>
         </div>
@@ -57,15 +74,14 @@ export function Sidebar() {
             </div>
             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
               {navigation.map((item) => (
-                <NavLink
+                <button
                   key={item.name}
-                  to={item.href}
-                  className="flex items-center px-4 py-3 text-sm font-medium rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                  activeClassName="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary hover:text-sidebar-primary-foreground"
+                  onClick={() => handleClick(item.href)}
+                  className="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                 >
                   <item.icon className="mr-3 h-5 w-5" />
                   {item.name}
-                </NavLink>
+                </button>
               ))}
             </nav>
           </div>
