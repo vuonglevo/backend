@@ -26,6 +26,7 @@ export default function AdminNotification() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [sendAll, setSendAll] = useState(false);
+  
   useEffect(() => {
     const fetchStudents = async () => {
       try {
