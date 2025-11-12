@@ -15,6 +15,8 @@ import AdminFaculty from "./pages/admin/AdminFaculty";
 import AdminStudent from "./pages/admin/AdminStudent";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import AdminNotification from "./pages/admin/AdminNotification";
+import TeacherStudentDocuments from "./pages/admin/TeacherDocument";
+import DocumentsTeacher from "./pages/DocumentTeacher";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -29,6 +31,7 @@ const App = () => (
           <Route path="/documents" element={<Documents />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/teacherdocument" element={<DocumentsTeacher />} />
 
           {/* Route admin */}
           <Route
@@ -75,6 +78,16 @@ const App = () => (
               <PrivateRoute allowedRoles={["admin", "teacher"]}>
                 <AdminLayout>
                   <AdminNotification />
+                </AdminLayout>
+              </PrivateRoute>
+            }
+          />
+           <Route
+            path="/documentTeach"
+            element={
+              <PrivateRoute allowedRoles={["admin", "teacher"]}>
+                <AdminLayout>
+                  <TeacherStudentDocuments />
                 </AdminLayout>
               </PrivateRoute>
             }

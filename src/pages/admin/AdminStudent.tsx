@@ -62,12 +62,7 @@ const AdminStudent = () => {
 
         {/* Modal Thêm học viên */}
         <Dialog>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Thêm học viên
-            </Button>
-          </DialogTrigger>
+          
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Thêm học viên mới</DialogTitle>

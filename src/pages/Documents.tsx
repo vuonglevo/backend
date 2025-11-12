@@ -1,198 +1,118 @@
-import { useEffect, useState } from "react";
+// src/pages/MyDocuments.tsx
+import { useEffect, useMemo, useState } from "react";
 import { documentAPI } from "@/api/Api";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, Download, FileText, CheckCircle, Clock, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
-export default function Documents() {
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [file, setFile] = useState<File | null>(null);
-  const [type, setType] = useState("Khác");
-  const [open, setOpen] = useState(false);
+type Doc = {
+  _id: string; name: string; type?: string; fileUrl: string;
+  status: "pending" | "approved" | "rejected"; statusText?: string;
+};
 
-  const fetchDocuments = async () => {
+export default function Documents() {
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [myDocs, setMyDocs] = useState<Doc[]>([]);
+
+  const fetchMyDocs = async () => {
+    setLoading(true);
     try {
-      const res = await documentAPI.getAll();
-      setDocuments(Array.isArray(res.data) ? res.data : []); // ✅ luôn là []
-    } catch (err) {
+      const res = await documentAPI.getGrouped();
+      setMyDocs(res.data?.mine || []);
+    } catch (e) {
       toast.error("Không thể tải danh sách tài liệu");
-      console.error(err);
-      setDocuments([]); // ✅ fallback khi lỗi
+      setMyDocs([]);
     } finally {
       setLoading(false);
     }
   };
-  
+  useEffect(() => { fetchMyDocs(); }, []);
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+  const counts = useMemo(() => ({
+    total: myDocs.length,
+    approved: myDocs.filter(d => d.status === "approved").length,
+    pending: myDocs.filter(d => d.status === "pending").length,
+  }), [myDocs]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
-        return (
-          <Badge className="bg-green-500 gap-1">
-            <CheckCircle className="h-3 w-3" />
-            Đã duyệt
-          </Badge>
-        );
-      case "pending":
-        return (
-          <Badge className="bg-yellow-400 gap-1">
-            <Clock className="h-3 w-3" />
-            Chờ duyệt
-          </Badge>
-        );
-      case "rejected":
-        return (
-          <Badge variant="destructive" className="gap-1">
-            <XCircle className="h-3 w-3" />
-            Cần bổ sung
-          </Badge>
-        );
-      default:
-        return null;
-    }
-  };
+  const getStatusBadge = (s: string) =>
+    s === "approved" ? <Badge className="bg-green-500 gap-1"><CheckCircle className="h-3 w-3" />Đã duyệt</Badge> :
+    s === "pending"  ? <Badge className="bg-yellow-400 gap-1"><Clock className="h-3 w-3" />Chờ duyệt</Badge> :
+                       <Badge variant="destructive" className="gap-1"><XCircle className="h-3 w-3" />Cần bổ sung</Badge>;
 
   const handleUpload = async () => {
     if (!file) return toast.error("Vui lòng chọn file!");
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("type", type);
-
+    const fd = new FormData(); fd.append("file", file); fd.append("type", "Khác");
     try {
-      await documentAPI.upload(formData);
-      toast.success("Tải lên thành công!");
-      setOpen(false);
-      fetchDocuments();
-    } catch (err) {
-      console.error(err);
-      toast.error("Tải lên thất bại!");
+      await documentAPI.upload(fd);
+      toast.success("Tải lên thành công");
+      setOpen(false); setFile(null);
+      fetchMyDocs();
+    } catch (e) {
+      toast.error("Tải lên thất bại");
     }
   };
 
   const handleDownload = async (id: string, name: string) => {
     try {
       const res = await documentAPI.download(id);
-      const blob = new Blob([res.data]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      toast.error("Tải file thất bại");
-      console.error(err);
-    }
+      const blob = new Blob([res.data]); const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+    } catch { toast.error("Tải file thất bại"); }
   };
 
-  // ✅ Thêm hàm xóa tài liệu
   const handleDelete = async (id: string) => {
-    if (!confirm("Bạn có chắc muốn xóa tài liệu này?")) return;
-
+    if (!confirm("Bạn chắc muốn xóa?")) return;
     try {
-      await documentAPI.delete(id); // gọi API xóa
-      toast.success("Xóa tài liệu thành công!");
-      setDocuments((prev) => prev.filter((d) => d._id !== id)); // cập nhật table
-    } catch (err) {
-      toast.error("Xóa tài liệu thất bại!");
-      console.error(err);
-    }
+      await documentAPI.delete(id);
+      setMyDocs(prev => prev.filter(d => d._id !== id));
+      toast.success("Đã xóa");
+    } catch { toast.error("Xóa thất bại"); }
   };
+
+  const Stat = ({ title, value, icon: Icon }: any) => (
+    <Card><CardContent className="pt-6">
+      <div className="flex items-center justify-between">
+        <div><p className="text-sm text-muted-foreground">{title}</p><p className="text-3xl font-bold mt-2">{value}</p></div>
+        <Icon className="h-8 w-8 text-primary" />
+      </div>
+    </CardContent></Card>
+  );
 
   return (
     <MainLayout>
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold text-foreground">Quản lý tài liệu</h1>
-          <Button className="gap-2" onClick={() => setOpen(true)}>
-            <Upload className="h-4 w-4" />
-            Nộp tài liệu mới
-          </Button>
+        <div className="flex items-start sm:items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold">Tài liệu của tôi</h1>
+          <Button className="gap-2" onClick={() => setOpen(true)}><Upload className="h-4 w-4" />Nộp tài liệu mới</Button>
         </div>
 
         {open && (
           <div className="p-4 border rounded-md bg-white shadow-md">
             <h2 className="text-lg font-semibold mb-2">Tải lên tài liệu</h2>
             <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            
             <div className="mt-3 flex gap-2">
               <Button onClick={handleUpload}>Xác nhận</Button>
-              <Button variant="outline" onClick={() => setOpen(false)}>
-                Hủy
-              </Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>Hủy</Button>
             </div>
           </div>
         )}
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tổng số tài liệu</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">{documents.length}</p>
-                </div>
-                <FileText className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Đã duyệt</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">
-                    {documents.filter((d) => d.status === "approved").length}
-                  </p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Chờ duyệt</p>
-                  <p className="text-3xl font-bold text-foreground mt-2">
-                    {documents.filter((d) => d.status === "pending").length}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-yellow-400" />
-              </div>
-            </CardContent>
-          </Card>
+          <Stat title="Tổng" value={counts.total} icon={FileText} />
+          <Stat title="Đã duyệt" value={counts.approved} icon={CheckCircle} />
+          <Stat title="Chờ duyệt" value={counts.pending} icon={Clock} />
         </div>
 
-        {/* Documents Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Danh sách tài liệu</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>Danh sách tài liệu tôi đã nộp</CardTitle></CardHeader>
           <CardContent>
-            {loading ? (
-              <p>Đang tải dữ liệu...</p>
-            ) : (
+            {loading ? <p>Đang tải...</p> : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -203,32 +123,22 @@ export default function Documents() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {documents.map((doc) => (
+                  {myDocs.map(doc => (
                     <TableRow key={doc._id}>
                       <TableCell className="font-medium">{doc.name}</TableCell>
-                      <TableCell>{doc.type}</TableCell>
+                      <TableCell>{doc.type || "Khác"}</TableCell>
                       <TableCell>{getStatusBadge(doc.status)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDownload(doc._id, doc.name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          {/* Nút xóa */}
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => handleDelete(doc._id)}
-                          >
-                            <XCircle className="h-4 w-4" />
-                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDownload(doc._id, doc.name)}><Download className="h-4 w-4" /></Button>
+                          <Button variant="destructive" size="icon" onClick={() => handleDelete(doc._id)}><XCircle className="h-4 w-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
                   ))}
+                  {myDocs.length === 0 && !loading && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Chưa có tài liệu</TableCell></TableRow>
+                  )}
                 </TableBody>
               </Table>
             )}

@@ -25,65 +25,127 @@ export default function AdminNotification() {
   const [mode, setMode] = useState<"file" | "normal">("file");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
-
+  const [sendAll, setSendAll] = useState(false);
   useEffect(() => {
     const fetchStudents = async () => {
-      try { const res = await adminStudentAPI.getAll(); setStudents(res.data); }
-      catch { toast.error("Không thể tải danh sách học viên"); }
+      try {
+        const res = await adminStudentAPI.getAll({ page: 1, limit: 200, search: "" });
+        const list: Student[] = Array.isArray(res.data) ? res.data : (res as any)?.data?.items ?? [];
+        setStudents(list);
+      } catch {
+        toast.error("Không thể tải danh sách học viên");
+      }
     };
     fetchStudents();
     fetchNotificationsAdmin();
   }, []);
-
+  useEffect(() => {
+    // nếu chuyển sang file thì tắt gửi tất cả
+    if (mode === "file" && sendAll) setSendAll(false);
+  }, [mode, sendAll]);
   const fetchNotificationsAdmin = async () => {
     setLoadingNoti(true);
     try {
       const res = await notificationAPI.getAllAdmin();
-      const formatted: Notification[] = res.data.map((n: any) => ({
+      const formatted: Notification[] = (res.data || []).map((n: any) => ({
         _id: n._id,
         title: n.title,
         content: n.content,
         createdAt: n.createdAt,
-        userIds: n.userId ? [{ _id: n.userId, name: "Học viên", email: "" }] : [],
+        userIds: n.userId
+          ? [{ _id: n.userId._id ?? n.userId, name: n.userId.name ?? "Học viên", email: n.userId.email ?? "" }]
+          : [],
       }));
       setNotifications(formatted);
-    } catch {} 
-    finally { setLoadingNoti(false); }
+    } finally {
+      setLoadingNoti(false);
+    }
   };
 
   const filteredStudents = students.filter(
-    (s) => s.name.toLowerCase().includes(searchText.toLowerCase()) || s.email.toLowerCase().includes(searchText.toLowerCase())
+    (s) =>
+      s.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      s.email.toLowerCase().includes(searchText.toLowerCase())
   );
 
   useEffect(() => {
-    if (selectedStudent && mode === "file") fetchDocuments(selectedStudent._id);
-    else { setDocuments([]); setSelectedDocument(""); }
-  }, [selectedStudent, mode]);
+    if (mode !== "file") {
+      setDocuments([]);
+      setSelectedDocument("");
+      return;
+    }
+    if (!selectedStudent?._id) {
+      setDocuments([]);
+      setSelectedDocument("");
+      return;
+    }
+    fetchDocuments(selectedStudent._id);
+  }, [selectedStudent?._id, mode]);
 
   const fetchDocuments = async (studentId: string) => {
     setLoadingDocs(true);
     try {
-      const res = await adminDocumentAPI.getAll("", "");
-      const docs = res.data.filter(
-        (doc: Document & { userId: { _id: string } }) => doc.userId._id === studentId
-      );
-      setDocuments(docs); setSelectedDocument(docs[0]?._id || "");
-    } catch { toast.error("Không thể tải danh sách file"); }
-    finally { setLoadingDocs(false); }
+      // ⬅️ truyền studentId lên backend
+      const res = await adminDocumentAPI.getAll({ studentId });
+      const docs = res?.data ?? [];
+      setDocuments(docs);
+      setSelectedDocument(docs[0]?._id || "");
+    } catch {
+      toast.error("Không thể tải danh sách file");
+      setDocuments([]);
+      setSelectedDocument("");
+    } finally {
+      setLoadingDocs(false);
+    }
   };
-
   const handleSendNotification = async () => {
-    if (!selectedStudent || !message) return toast.error("Vui lòng chọn học viên và điền nội dung");
-    let title = mode === "file" ? `Thông báo về file: ${documents.find(d => d._id === selectedDocument)?.name}` : "Thông báo từ giảng viên";
-    if (mode === "file" && !selectedDocument) return toast.error("Vui lòng chọn file");
-    try {
-      await notificationAPI.create({ userIds: [selectedStudent._id], title, content: message, type: "info" });
-      toast.success("Gửi thông báo thành công");
-      setMessage(""); setSelectedStudent(null); setSelectedDocument(""); setSearchText("");
-      fetchNotificationsAdmin();
-    } catch { toast.error("Gửi thông báo thất bại"); }
-  };
+    if (!message.trim()) return toast.error("Vui lòng nhập nội dung thông báo");
 
+    // ⬅️ gửi tất cả học viên
+    if (sendAll) {
+      if (!students.length) return toast.error("Không có học viên nào");
+      try {
+        await notificationAPI.create({
+          userIds: students.map((s) => s._id),
+          title: "Thông báo từ giảng viên",
+          content: message.trim(),
+          type: "info",
+        });
+        toast.success(`Đã gửi cho ${students.length} học viên`);
+        setMessage(""); setSelectedStudent(null); setSelectedDocument("");
+        setSearchText(""); setDocuments([]);
+        fetchNotificationsAdmin();
+        return;
+      } catch {
+        return toast.error("Gửi thông báo thất bại");
+      }
+    }
+
+    // ⬅️ gửi 1 học viên
+    if (!selectedStudent) return toast.error("Vui lòng chọn học viên");
+
+    let title = "Thông báo từ giảng viên";
+    if (mode === "file") {
+      if (!selectedDocument) return toast.error("Vui lòng chọn file");
+      const docName = documents.find((d) => d._id === selectedDocument)?.name ?? "Tài liệu";
+      title = `Thông báo về file: ${docName}`;
+    }
+
+    try {
+      await notificationAPI.create({
+        userIds: [selectedStudent._id],
+        title,
+        content: message.trim(),
+        type: "info",
+      });
+      toast.success("Gửi thông báo thành công");
+      setMessage(""); setSelectedStudent(null); setSelectedDocument("");
+      setSearchText(""); setDocuments([]);
+      fetchNotificationsAdmin();
+    } catch {
+      toast.error("Gửi thông báo thất bại");
+    }
+  };
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setShowDropdown(false);
@@ -96,21 +158,10 @@ export default function AdminNotification() {
     <>
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
         <div className="w-full max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8 flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl shadow-lg">
-              <Bell className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                Quản lý thông báo học viên
-              </h1>
-              <p className="text-gray-600 mt-1">Gửi thông báo và theo dõi lịch sử</p>
-            </div>
-          </div>
+        
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Form gửi thông báo */}
+            {/* Form gửi thông báo */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 space-y-5">
               <div className="flex items-center gap-2 mb-4">
                 <Send className="w-5 h-5 text-blue-600" />
@@ -118,26 +169,21 @@ export default function AdminNotification() {
               </div>
 
               {/* Mode Selection */}
+              {/* Mode Selection */}
               <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
                 <Button
                   variant={mode === "file" ? "default" : "ghost"}
-                  className={`flex-1 gap-2 transition-all ${
-                    mode === "file"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                      : "hover:bg-white"
-                  }`}
+                  className={`flex-1 gap-2 transition-all ${mode === "file" ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md" : "hover:bg-white"}`}
                   onClick={() => setMode("file")}
+                  disabled={sendAll}                               // ⬅️ khóa khi gửi tất cả
+                  title={sendAll ? "Tắt 'Gửi tất cả' để dùng chế độ file" : ""}
                 >
                   <FileText className="w-4 h-4" />
                   Thông báo về file
                 </Button>
                 <Button
                   variant={mode === "normal" ? "default" : "ghost"}
-                  className={`flex-1 gap-2 transition-all ${
-                    mode === "normal"
-                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
-                      : "hover:bg-white"
-                  }`}
+                  className={`flex-1 gap-2 transition-all ${mode === "normal" ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md" : "hover:bg-white"}`}
                   onClick={() => setMode("normal")}
                 >
                   <User className="w-4 h-4" />
@@ -145,7 +191,29 @@ export default function AdminNotification() {
                 </Button>
               </div>
 
+              {/* Toggle gửi tất cả */}
+              {mode === "normal" && (
+              <div className="flex items-center gap-3 mt-2">
+                <input
+                  id="send-all"
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={sendAll}
+                  onChange={(e) => setSendAll(e.target.checked)}
+                />
+                <Label htmlFor="send-all" className="text-sm text-gray-700">
+                  Gửi cho tất cả học viên
+                </Label>
+                {sendAll && (
+                  <span className="text-xs text-gray-500">
+                    ({students.length} học viên sẽ nhận)
+                  </span>
+                )}
+              </div>
+              )}
+
               {/* Student Selection */}
+              {!sendAll && (
               <div className="relative" ref={dropdownRef}>
                 <Label className="flex items-center gap-2 mb-2 text-gray-700 font-medium">
                   <Search className="w-4 h-4" />
@@ -190,9 +258,10 @@ export default function AdminNotification() {
                   </ul>
                 )}
               </div>
+              )}
 
               {/* File Selection */}
-              {mode === "file" && selectedStudent && (
+              {mode === "file" && !sendAll && selectedStudent && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
                   <Label className="flex items-center gap-2 mb-2 text-gray-700 font-medium">
                     <FileText className="w-4 h-4" />
@@ -319,6 +388,6 @@ export default function AdminNotification() {
           background: linear-gradient(to bottom, #2563eb, #4f46e5);
         }
       `}</style>
-     </>
+    </>
   );
 }

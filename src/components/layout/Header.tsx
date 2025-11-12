@@ -1,23 +1,22 @@
+// Header.tsx
 import { useState, useEffect } from "react";
-import { Bell, User } from "lucide-react";
+import { User, PanelLeftOpen, PanelLeftClose } from "lucide-react"; // ⬅️ dùng icon toggle
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { authAPI } from "@/api/Api";
 import AuthDialog from "@/pages/user/AuthDialog";
-interface HeaderProps {
-  onLoginSuccess?: (user: { name: string; email: string; avatar?: string }) => void;
-}
+import { useSidebar } from "@/contexts/SidebarContext"; // ⬅️ thêm
+
+interface HeaderProps { onLoginSuccess?: (user: { name: string; email: string; avatar?: string }) => void; }
+
 export function Header({ onLoginSuccess }: HeaderProps) {
   const [user, setUser] = useState<{ name: string; email: string; avatar?: string } | null>(null);
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const { collapsed, toggle } = useSidebar(); // ⬅️ lấy state
 
   useEffect(() => {
     try {
@@ -36,27 +35,20 @@ export function Header({ onLoginSuccess }: HeaderProps) {
     setUser(null);
     window.location.reload();
   };
-  const handleLoginSuccess = (userData: { name: string; email: string; avatar?: string }) => {
-    setUser(userData);
-  };
 
   return (
     <header className="bg-card border-b border-border sticky top-0 z-40">
       <div className="flex items-center justify-between h-16 px-6 lg:px-8">
-        {/* Placeholder hoặc logo bên trái */}
-        <div className="flex items-center flex-1 gap-4">
+        {/* Trái: nút thu gọn + logo */}
+        <div className="flex items-center flex-1 gap-3">
+          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Thu gọn/mở rộng sidebar" className="hidden lg:inline-flex">
+            {collapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </Button>
           <span className="font-bold text-lg">MyApp</span>
         </div>
 
-        {/* User + Notification lùi về bên phải */}
+        {/* Phải: user hoặc đăng nhập. ĐÃ GỠ CHUÔNG THÔNG BÁO */}
         <div className="flex items-center gap-4 ml-auto">
-          {user && (
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-            </Button>
-          )}
-
           {!user ? (
             <>
               <Button onClick={() => setShowAuthDialog(true)}>Đăng nhập</Button>
@@ -65,7 +57,7 @@ export function Header({ onLoginSuccess }: HeaderProps) {
                 onClose={() => setShowAuthDialog(false)}
                 onLoginSuccess={(userData) => {
                   setUser(userData);
-                  onLoginSuccess?.(userData); // gọi callback Dashboard
+                  onLoginSuccess?.(userData);
                 }}
               />
             </>
@@ -92,10 +84,7 @@ export function Header({ onLoginSuccess }: HeaderProps) {
                   Thông tin cá nhân
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive cursor-pointer"
-                  onClick={handleLogout}
-                >
+                <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleLogout}>
                   Đăng xuất
                 </DropdownMenuItem>
               </DropdownMenuContent>

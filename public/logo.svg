@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sau ĐH">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <!-- Hình khiên -->
+  <path d="M32 4l20 8v16c0 12.15-8.63 22.86-20 26-11.37-3.14-20-13.85-20-26V12l20-8z" fill="url(#g)"/>
+  <!-- Mũ tốt nghiệp -->
+  <path d="M32 20L12 28l20 8 20-8-20-8z" fill="#fff"/>
+  <path d="M22 30v6c0 2.21 4.48 4 10 4s10-1.79 10-4v-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="50" cy="28" r="2" fill="#fff"/>
+</svg>

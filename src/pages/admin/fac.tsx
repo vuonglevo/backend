@@ -1,5 +1,4 @@
 // AdminFaculty.tsx
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Paginated, Teacher, teacherAPI } from "@/api/Api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Mail, Phone, Plus } from "lucide-react";
 
-const LIMIT = 20;
-
 const AdminFaculty = () => {
   const { data, isLoading, isError, error } = useQuery<Paginated<Teacher>>({
-    queryKey: ["teachers", { page: 1, limit: LIMIT }],
-    queryFn: async () => {
-      const res = await teacherAPI.getAll({ page: 1, limit: LIMIT });
-      // interceptor 401 có thể trả { data: null }
-      return res?.data ?? { items: [], pagination: { total: 0, page: 1, limit: LIMIT } };
-    },
+    queryKey: ["teachers"],
+    queryFn: async () => (await teacherAPI.getAll({ page: 1, limit: 20 })).data,
     staleTime: 60_000,
   });
 
@@ -28,9 +21,14 @@ const AdminFaculty = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Quản lý giảng viên</h1>
-          <p className="text-muted-foreground mt-1">Danh sách giảng viên hướng dẫn sau đại học</p>
+          <p className="text-muted-foreground mt-1">
+            Danh sách giảng viên hướng dẫn sau đại học
+          </p>
         </div>
-      
+        <Button className="gap-2">
+          <Plus className="h-4 w-4" />
+          Thêm giảng viên
+        </Button>
       </div>
 
       {isLoading && <p className="text-sm text-muted-foreground">Đang tải...</p>}
@@ -47,19 +45,19 @@ const AdminFaculty = () => {
               <div className="flex items-start gap-4">
                 <Avatar className="h-16 w-16">
                   <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                    {(m.initials && m.initials.toUpperCase()) ||
-                      (m.name || "")
-                        .trim()
-                        .split(/\s+/)
-                        .map((s) => s[0] || "")
-                        .join("")
-                        .slice(-3)
-                        .toUpperCase()}
+                    {(m.name || "")
+                      .split(" ")
+                      .map((s) => s[0])
+                      .join("")
+                      .slice(-3)
+                      .toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
                   <CardTitle className="text-xl">{m.name}</CardTitle>
-                  {m.title && <p className="text-sm text-muted-foreground mt-1">{m.title}</p>}
+                  {m.title && (
+                    <p className="text-sm text-muted-foreground mt-1">{m.title}</p>
+                  )}
                   {m.department && (
                     <Badge variant="secondary" className="mt-2">
                       {m.department}
@@ -79,7 +77,7 @@ const AdminFaculty = () => {
                   <span className="text-muted-foreground">{m.phone}</span>
                 </div>
               )}
-              <div className="pt-3 border-t" />
+              <div className="pt-3 border-t"></div>
             </CardContent>
           </Card>
         ))}

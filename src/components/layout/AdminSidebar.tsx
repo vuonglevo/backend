@@ -5,21 +5,37 @@ import {
   Users,
   GraduationCap,
   FileText,
-  Settings,
   BookOpen,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
-const navigation = [
+type Role = "admin" | "teacher" | "student";
+
+const NAV_ALL = [
   { name: "Tổng quan", href: "/admin", icon: LayoutDashboard },
   { name: "Học viên", href: "/adminStu", icon: GraduationCap },
-  { name: "Giảng viên", href: "/adminFac", icon: Users },
+  { name: "Giảng viên", href: "/adminFac", icon: Users },               // <- ẩn khi role=teacher
   { name: "Thông báo cho học viên", href: "/adminNot", icon: BookOpen },
-  { name: "Tài liệu", href: "/adminDoc", icon: FileText },
-  { name: "Cài đặt", href: "/settings", icon: Settings },
+  { name: "Tài liệu của học viên", href: "/adminDoc", icon: FileText },
+  { name: "Gửi tài liệu cho học viên", href: "/documentTeach", icon: FileText },
 ];
 
 export const AdminSidebar = () => {
   const location = useLocation();
+  const [role, setRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    try {
+      const r = localStorage.getItem("role") as Role | null;
+      setRole(r);
+    } catch {
+      setRole(null);
+    }
+  }, []);
+
+  const navItems = NAV_ALL.filter((item) =>
+    role === "teacher" ? item.href !== "/adminFac" : true
+  );
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border animate-slide-in">
@@ -28,19 +44,17 @@ export const AdminSidebar = () => {
         <div className="flex h-16 items-center border-b border-sidebar-border px-6">
           <GraduationCap className="h-8 w-8 text-sidebar-primary" />
           <div className="ml-3">
-            <h1 className="text-lg font-bold text-sidebar-foreground">
-              Sau đại học
-            </h1>
-            <p className="text-xs text-sidebar-foreground/70">
-              Hệ thống quản lý
-            </p>
+            <h1 className="text-lg font-bold text-sidebar-foreground">Sau đại học</h1>
+            <p className="text-xs text-sidebar-foreground/70">Hệ thống quản lý</p>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
-          {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
+          {navItems.map((item) => {
+            const isActive =
+              location.pathname === item.href ||
+              location.pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.name}
@@ -63,16 +77,14 @@ export const AdminSidebar = () => {
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3 px-3">
             <div className="h-8 w-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center">
-              <span className="text-xs font-medium text-sidebar-primary">
-                QT
-              </span>
+              <span className="text-xs font-medium text-sidebar-primary">QT</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-sidebar-foreground truncate">
-                Quản trị viên
+                {role === "teacher" ? "Giảng viên" : "Quản trị viên"}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                admin@university.edu.vn
+                {role === "teacher" ? "teacher@university.edu.vn" : "admin@university.edu.vn"}
               </p>
             </div>
           </div>

@@ -22,7 +22,7 @@ export default function Dashboard() {
 
       setUser(data.user || null);
       setStats([
-        { title: "Tài liệu đã nộp", value: data.stats?.totalDocs || 0, icon: FileText, color: "text-primary" },
+        { title: "Tài liệu", value: data.stats?.totalDocs || 0, icon: FileText, color: "text-primary" },
         { title: "Chờ duyệt", value: data.stats?.pendingDocs || 0, icon: Clock, color: "text-warning" },
         { title: "Đã duyệt", value: data.stats?.approvedDocs || 0, icon: CheckCircle, color: "text-success" },
         { title: "Cần bổ sung", value: data.stats?.rejectedDocs || 0, icon: AlertCircle, color: "text-destructive" },

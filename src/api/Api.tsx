@@ -32,11 +32,13 @@ api.interceptors.response.use(
     }
 );
 
+export type Role = "student" | "teacher" | "admin";
+
 export interface RegisterData {
     name: string;
     email: string;
     password: string;
-    role?: "student" | "admin";
+    role?: Extract<Role, "student" | "teacher">; // chỉ gửi 2 role cho /register
 }
 
 export interface LoginData {
@@ -50,7 +52,7 @@ export interface LoginResponse {
         _id: string;
         name: string;
         email: string;
-        role: "student" | "admin";
+        role: Role;
         isActive?: boolean;
     };
 }
@@ -134,7 +136,7 @@ export interface User {
     _id: string;
     name: string;
     email: string;
-    role: "student" | "admin";
+    role: "student" | "teacher" | "admin";
     isActive?: boolean;
     studentId?: string;
     dob?: string;
@@ -163,31 +165,35 @@ export interface AdminDocument {
     status: "pending" | "approved" | "rejected";
     statusText?: string;
     uploadDate?: string;
-    userId: {
-        _id: string;
-        name: string;
-        email: string;
-        studentId?: string;
-    };
+    userId: { _id: string; name: string; email: string; studentId?: string };
+    uploadedBy?: { _id: string; name?: string; email?: string }; // <-- thêm
+
 }
 
 export const adminDocumentAPI = {
-    getAll: (search?: string, status?: string): Promise<AxiosResponse<AdminDocument[]>> =>
-        api.get("/admin/documents", { params: { search, status } }),
-
+    getAll: (params?: { search?: string; status?: string; studentId?: string }) =>
+        api.get("/admin/documents", { params }),
+    
     updateStatus: (id: string, status: "approved" | "rejected" | "pending", statusText?: string) =>
         api.put(`/admin/documents/${id}/status`, { status, statusText }),
 
     download: (id: string) =>
         api.get(`/admin/documents/${id}/download`, { responseType: "blob" }),
 };
-export const adminStudentAPI = {
-    getAll: (search?: string) =>
-        api.get<User[]>("/admin/students", { params: { search } }),  // thêm /admin
+export interface PagedParams {
+    page?: number;
+    limit?: number;
+    search?: string;
+  }
+  export const adminStudentAPI = {
+    // ⬇️ nhận object params và truyền phẳng
+    getAll: (params?: PagedParams) =>
+      api.get<User[]>("/admin/students", { params }),
+  
     create: (data: Partial<User>) => api.post("/admin/students", data),
     update: (id: string, data: Partial<User>) => api.put(`/admin/students/${id}`, data),
     delete: (id: string) => api.delete(`/admin/students/${id}`),
-};
+  };
 
 
 export const dashboardAPI = {
@@ -212,6 +218,8 @@ export const notificationAPI = {
 };
 export const documentAPI = {
     getAll: () => api.get<DocumentData[]>("/documents"),
+    getGrouped: () => api.get<{ mine: any[]; fromTeachers: any[]; total: number }>("/documents/grouped"),
+
     upload: (formData: FormData) =>
         api.post("/documents", formData, {
             headers: { "Content-Type": "multipart/form-data" },
@@ -221,31 +229,69 @@ export const documentAPI = {
     delete: (id: string) =>
         api.delete(`/documents/${id}`),
 };
+
 export const authAPI = {
     register: (data: RegisterData): Promise<AxiosResponse<LoginResponse>> =>
         api.post("/auth/register", data),
-
     login: (data: LoginData): Promise<AxiosResponse<LoginResponse>> =>
         api.post("/auth/login", data),
-
     getCurrentUser: (): Promise<AxiosResponse<{ user: LoginResponse["user"] }>> =>
         api.get("/auth/me"),
-
     updateProfile: (data: any, token: string) =>
-        api.put("/auth/update", data, {
-            headers: { Authorization: `Bearer ${token}` },
-        }),
-    getProfile: () => api.get("/profile"),
-
+        api.put("/auth/update", data, { headers: { Authorization: `Bearer ${token}` } }),
+    getProfile: () => api.get("/auth/me"),
     logout: async (): Promise<void> => {
         try {
             await api.post("/auth/logout");
-        } catch (err) {
-            console.warn("Server logout lỗi (bỏ qua vì token ở localStorage):", err);
         } finally {
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("user");
         }
     },
+};
+// api/Api.ts
+export interface Teacher {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    avatar?: string;
+    department?: string;
+    title?: string;
+    initials?: string;
+    role: "teacher";
+    isActive?: boolean;
+    lastActive?: string;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface Paginated<T> {
+    items: T[];
+    pagination: { total: number; page: number; limit: number };
+}
+// api/Api.ts
+export const teacherAPI = {
+    getAll: (params?: { search?: string; page?: number; limit?: number }) =>
+        api.get<Paginated<Teacher>>("/admin/teachers", { params }),
+
+    remove: (id: string) => api.delete(`/admin/teachers/${id}`),
+
+    // NEW: lịch sử đã gửi của chính GV, mọi SV
+    listAllSentDocs: () =>
+        api.get<{ items: AdminDocument[] }>("/admin/teachers/sent-docs"),
+
+    // Lịch sử đã gửi cho 1 SV cụ thể
+    listSentDocs: (studentId: string) =>
+        api.get<{ items: AdminDocument[] }>(`/admin/teachers/${studentId}/documents`),
+
+    uploadToStudent: (studentId: string, form: FormData) =>
+        api.post(`/admin/teachers/${studentId}/documents`, form, {
+            headers: { "Content-Type": "multipart/form-data" },
+        }),
+    uploadToAll: (form: FormData) =>
+        api.post(`/admin/teachers/broadcast-documents`, form, {
+            headers: { "Content-Type": "multipart/form-data" },
+        }), 
 };

@@ -15,12 +15,17 @@ const AdminDocuments = () => {
     setLoading(true);
     try {
       const res = await adminDocumentAPI.getAll();
-      const safeData = (res.data || []).map((doc: any) => ({
+      const raw: AdminDocument[] = (res.data || []).map((doc: any) => ({
         ...doc,
         userId: doc.userId || {},
       }));
-      setDocuments(safeData);
-      setFilteredDocs(safeData);
+  
+      // Chỉ hiển thị tài liệu do HỌC VIÊN tự up
+      // Quy ước: tài liệu GV/ADMIN gửi có uploadedBy tồn tại hoặc type === "teacher_upload"
+      const studentOnly = raw.filter(d => !d.uploadedBy && d.type !== "teacher_upload");
+  
+      setDocuments(studentOnly);
+      setFilteredDocs(studentOnly);
     } catch (err) {
       console.error(err);
       setDocuments([]);
@@ -29,6 +34,7 @@ const AdminDocuments = () => {
       setLoading(false);
     }
   };
+  
 
   const handleDownload = async (doc: AdminDocument) => {
     try {
@@ -139,13 +145,12 @@ const AdminDocuments = () => {
                     <p className="text-xs mt-1">
                       Trạng thái:{" "}
                       <span
-                        className={`font-semibold ${
-                          doc.status === "approved"
+                        className={`font-semibold ${doc.status === "approved"
                             ? "text-green-600"
                             : doc.status === "rejected"
-                            ? "text-red-600"
-                            : "text-yellow-600"
-                        }`}
+                              ? "text-red-600"
+                              : "text-yellow-600"
+                          }`}
                       >
                         {doc.statusText || doc.status}
                       </span>
@@ -161,6 +166,8 @@ const AdminDocuments = () => {
                   >
                     <Download className="h-4 w-4" /> Tải xuống
                   </Button>
+
+                  {/* Chỉ hiện DUYỆT khi chưa approved */}
                   {doc.status !== "approved" && (
                     <Button
                       variant="ghost"
@@ -171,7 +178,9 @@ const AdminDocuments = () => {
                       <Check className="h-4 w-4" /> Duyệt
                     </Button>
                   )}
-                  {doc.status !== "rejected" && (
+
+                  {/* Chỉ hiện TỪ CHỐI khi đang pending */}
+                  {doc.status === "pending" && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -182,6 +191,7 @@ const AdminDocuments = () => {
                     </Button>
                   )}
                 </div>
+
               </CardContent>
             </Card>
           ))}

@@ -124,9 +124,6 @@ export default function Notifications() {
                       </div>
                       <p className="text-sm text-muted-foreground mb-4">{notification.content}</p>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Chi tiết
-                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
